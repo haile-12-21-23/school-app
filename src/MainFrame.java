@@ -84,29 +84,44 @@ public class MainFrame extends JFrame {
         refresh.addActionListener(e -> loadStudents.run());
 
         // ADD
-        add.addActionListener(e -> openAddStudentDialog());
+        add.addActionListener(e -> openAddStudentDialog(loadStudents));
 
         // DELETE
         delete.addActionListener(e -> {
             int row = studentTable.getSelectedRow();
-            if (row == -1)
+            if (row == -1) {
+                JOptionPane.showMessageDialog(this, "Select a row first!");
                 return;
+            }
 
             String roll = studentModel.getValueAt(row, 0).toString();
+            int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    "Delete Student " + roll + "?",
+                    "Confirm",
+                    JOptionPane.YES_NO_OPTION);
 
-            try {
-                db.deleteStudent(roll);
-                loadStudents.run();
-            } catch (Exception ex) {
-                showError(ex);
+            if (confirm == JOptionPane.YES_OPTION) {
+                try {
+                    int deleted = db.deleteQuiz(roll);
+
+                    JOptionPane.showMessageDialog(this, deleted + " deleted");
+                    // reload.run();
+
+                } catch (Exception ex) {
+                    showError(ex);
+                }
             }
+
         });
 
         // UPDATE
         update.addActionListener(e -> {
             int row = studentTable.getSelectedRow();
-            if (row == -1)
+            if (row == -1) {
+                JOptionPane.showMessageDialog(this, "Select a row first!");
                 return;
+            }
 
             String roll = studentModel.getValueAt(row, 0).toString();
             String name = studentModel.getValueAt(row, 1).toString();
@@ -209,10 +224,10 @@ public class MainFrame extends JFrame {
 
         panel.add(new JScrollPane(table), BorderLayout.CENTER);
 
-        JButton load = new JButton("Load Scores");
-        JButton addScore = new JButton("Add Score");
-        JButton update = new JButton("Update Selected");
-        JButton delete = new JButton("Delete Selected");
+        JButton load = new JButton("Refresh");
+        JButton addScore = new JButton("Add ");
+        JButton update = new JButton("Update ");
+        JButton delete = new JButton("Delete");
 
         JPanel btnPanel = new JPanel();
         btnPanel.add(load);
@@ -220,30 +235,7 @@ public class MainFrame extends JFrame {
         btnPanel.add(update);
         btnPanel.add(delete);
         panel.add(btnPanel, BorderLayout.SOUTH);
-        // Load Scores
 
-        // private void loadScores(DefaultTableModel model) {
-        // try {
-        // model.setRowCount(0);
-        // model.setColumnCount(0);
-
-        // model.addColumn("Student");
-        // model.addColumn("RollNo");
-        // model.addColumn("Quiz");
-        // model.addColumn("Marks");
-        // model.addColumn("Total");
-
-        // ResultSet rs = db.getScores();
-
-        // while (rs.next()) {
-        // model.addRow(new Object[] {
-        // rs.getString("StudentName"),
-        // rs.getString("RollNo"),
-        // rs.getString("QuizTitle"),
-        // rs.getInt("MarksObtained"),
-        // rs.getInt("TotalMarks")
-        // });
-        // }
         Runnable loadScores = () -> {
             try {
                 model.setRowCount(0);
@@ -251,20 +243,19 @@ public class MainFrame extends JFrame {
 
                 model.addColumn("Student");
                 model.addColumn("RollNo");
+                model.addColumn("Quiz Code");
                 model.addColumn("Quiz");
                 model.addColumn("Marks");
                 model.addColumn("Total");
 
-                // ResultSet rs = db.getConnection()
-                // .createStatement()
-                // .executeQuery("SELECT * FROM Quiz");
                 ResultSet rs = db.getScores();
 
                 while (rs.next()) {
                     model.addRow(new Object[] {
                             rs.getString("StudentName"),
                             rs.getString("RollNo"),
-                            rs.getString("QuizTitle"),
+                            rs.getString("QuizCode"),
+                                    rs.getString("QuizTitle"),
                             rs.getInt("MarksObtained"),
                             rs.getInt("TotalMarks")
                     });
@@ -278,7 +269,7 @@ public class MainFrame extends JFrame {
         load.addActionListener(e -> loadScores.run());
         addScore.addActionListener(e -> openAddScoreDialog(model));
 
-        update.addActionListener(e -> updateScoreRow(table, model));
+        update.addActionListener(e -> updateScoreRow(table, model, loadScores));
         delete.addActionListener(e -> deleteScoreRow(table, model));
         loadScores.run();
 
@@ -381,7 +372,7 @@ public class MainFrame extends JFrame {
         dialog.setVisible(true);
     }
 
-    private void updateScoreRow(JTable table, DefaultTableModel model) {
+    private void updateScoreRow(JTable table, DefaultTableModel model, Runnable reload) {
 
         int row = table.getSelectedRow();
 
@@ -391,24 +382,38 @@ public class MainFrame extends JFrame {
         }
 
         String roll = model.getValueAt(row, 1).toString();
-        String quiz = model.getValueAt(row, 2).toString();
+        String quizCode = model.getValueAt(row, 2).toString();
+        String mark = model.getValueAt(row, 4).toString();
 
-        // Extract quizCode (if format: CODE - TITLE)
-        String quizCode = quiz.contains(" - ") ? quiz.split(" - ")[0] : quiz;
+        System.out.print("quizCode:" + model.getValueAt(row, 5));
 
-        String newMarksStr = JOptionPane.showInputDialog(this, "Enter new marks:");
+        String totalMark = model.getValueAt(row, 5).toString();
+        JTextField markF = new JTextField(mark);
+        Object[] fields = {
+                "Mark:", markF,
 
-        if (newMarksStr == null)
-            return;
+        };
+
+        int ok = JOptionPane.showConfirmDialog(this, fields, "Update Quiz", JOptionPane.OK_CANCEL_OPTION);
 
         try {
-            int newMarks = Integer.parseInt(newMarksStr);
+            int newMarks = Integer.parseInt(markF.getText());
+            int total = Integer.parseInt(totalMark);
 
-            int updated = db.updateScore(roll, quizCode, newMarks);
+            if (newMarks > total) {
+                JOptionPane.showMessageDialog(this, "The mark you entered should not greater than total.");
+                return;
 
-            JOptionPane.showMessageDialog(this, updated + " score updated");
+            }
+            if (ok == JOptionPane.OK_OPTION) {
 
-            loadScores(model);
+                int updated = db.updateScore(roll, quizCode, newMarks);
+
+                JOptionPane.showMessageDialog(this, updated + " score updated");
+
+                loadScores(model);
+                reload.run();
+            }
 
         } catch (Exception e) {
             showError(e);
@@ -449,7 +454,7 @@ public class MainFrame extends JFrame {
         }
     }
 
-    private void openAddStudentDialog() {
+    private void openAddStudentDialog(Runnable reload) {
 
         JDialog dialog = new JDialog(this, "Add Student", true);
         dialog.setLocation(20, 10);
@@ -483,14 +488,16 @@ public class MainFrame extends JFrame {
 
                 JOptionPane.showMessageDialog(this, rows + " student added");
                 dialog.dispose();
-                new MainFrame(db).setVisible(true);
+                reload.run();
 
+                // new MainFrame(db).setVisible(true);
             } catch (Exception ex) {
                 showError(ex);
             }
         });
 
         dialog.setVisible(true);
+
     }
 
     private void showError(Exception e) {
@@ -555,11 +562,13 @@ public class MainFrame extends JFrame {
         String title = model.getValueAt(row, 1).toString();
         int total = Integer.parseInt(model.getValueAt(row, 2).toString());
 
+        JTextField codeF = new JTextField(code);
         JTextField titleF = new JTextField(title);
         JTextField totalF = new JTextField(String.valueOf(total));
 
         Object[] fields = {
-                "Title:", titleF,
+                "QuizCode:", codeF,
+                        "Title:", titleF,
                 "Total:", totalF
         };
 
@@ -569,7 +578,8 @@ public class MainFrame extends JFrame {
             try {
                 int updated = db.updateQuiz(
                         code,
-                        titleF.getText(),
+                        codeF.getText(),
+                                titleF.getText(),
                         Integer.parseInt(totalF.getText()));
 
                 JOptionPane.showMessageDialog(this, updated + " updated");
