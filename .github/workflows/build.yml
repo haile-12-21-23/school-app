@@ -1,0 +1,52 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Compile Java files
+        run: |
+          mkdir out
+          javac -d out -cp "lib/*" src/**/*.java
+
+      - name: Create JAR
+        run: |
+          jar --create --file school-app.jar -C out .
+
+      - name: Prepare input folder
+        run: |
+          mkdir input
+          copy school-app.jar input\
+          copy lib\mysql-connector-j-9.7.0.jar input\
+
+      - name: Build EXE with jpackage
+        run: |
+          jpackage ^
+            --name SchoolApp ^
+            --input input ^
+            --main-jar school-app.jar ^
+            --main-class LoginFrame ^
+            --type exe ^
+            --win-shortcut ^
+            --win-menu ^
+            --dest build
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: SchoolApp-Installer
+          path: build/*
