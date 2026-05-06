@@ -18,35 +18,59 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Clean and compile
+      # ----------------------------
+      # CLEAN + COMPILE ALL JAVA
+      # ----------------------------
+      - name: Compile Java sources
         shell: powershell
         run: |
           Remove-Item -Recurse -Force out -ErrorAction SilentlyContinue
-          mkdir out
-          javac -d out -cp "lib/*" src/**/*.java
+          New-Item -ItemType Directory -Path out
 
+          $sources = Get-ChildItem -Recurse -Filter *.java src | ForEach-Object { $_.FullName }
+
+          javac -d out -cp "lib/*" $sources
+
+      # ----------------------------
+      # CREATE JAR
+      # ----------------------------
       - name: Create JAR
+        shell: powershell
         run: |
+          Remove-Item school-app.jar -ErrorAction SilentlyContinue
           jar --create --file school-app.jar -C out .
 
+      # ----------------------------
+      # PREPARE INPUT FOR JPACKAGE
+      # ----------------------------
       - name: Prepare input folder
+        shell: powershell
         run: |
-          mkdir input
-          copy school-app.jar input\
-          copy lib\mysql-connector-j-9.7.0.jar input\
+          Remove-Item -Recurse -Force input -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path input
 
+          Copy-Item school-app.jar input\
+          Copy-Item lib\mysql-connector-j-9.7.0.jar input\
+
+      # ----------------------------
+      # BUILD WINDOWS EXE
+      # ----------------------------
       - name: Build EXE with jpackage
+        shell: powershell
         run: |
-          jpackage ^
-            --name SchoolApp ^
-            --input input ^
-            --main-jar school-app.jar ^
-            --main-class LoginFrame ^
-            --type exe ^
-            --win-shortcut ^
-            --win-menu ^
+          jpackage `
+            --name SchoolApp `
+            --input input `
+            --main-jar school-app.jar `
+            --main-class LoginFrame `
+            --type exe `
+            --win-shortcut `
+            --win-menu `
             --dest build
 
+      # ----------------------------
+      # UPLOAD INSTALLER
+      # ----------------------------
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
