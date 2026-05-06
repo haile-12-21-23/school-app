@@ -18,8 +18,10 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Compile Java files
+      - name: Clean and compile
+        shell: powershell
         run: |
+          Remove-Item -Recurse -Force out -ErrorAction SilentlyContinue
           mkdir out
           javac -d out -cp "lib/*" src/**/*.java
 
