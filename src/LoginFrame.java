@@ -32,6 +32,7 @@ public class LoginFrame extends JFrame {
             db = new DBHelper();
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, e.getMessage());
+            e.printStackTrace();
         }
 
         loginBtn.addActionListener(e -> {

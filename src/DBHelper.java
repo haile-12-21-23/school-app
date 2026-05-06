@@ -7,9 +7,79 @@ public class DBHelper {
     public DBHelper() throws Exception {
         Class.forName("com.mysql.cj.jdbc.Driver");
         conn = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306/school_db?useSSL=false&serverTimezone=UTC",
-                "root",
-                "Haile#122123#");
+                "jdbc:mysql://localhost:3306/", "root", "Haile#122123#");
+
+        Statement stmt = conn.createStatement();
+
+        stmt.executeUpdate("CREATE DATABASE IF NOT EXISTS school_db");
+
+        // connect to DB
+        conn = DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/school_db?useSSL=false&serverTimezone=UTC", "root", "Haile#122123#");
+        System.out.print("Connected........");
+
+        stmt = conn.createStatement();
+        createTables();
+    }
+
+    public void createTables() {
+        try {
+            // System.out.print("Connecting........");
+            // // connect to server
+            // Connection conn = DriverManager.getConnection(
+            // "jdbc:mysql://localhost:3306/", "root", "Haile#122123#");
+
+            // Statement stmt = conn.createStatement();
+
+            // stmt.executeUpdate("CREATE DATABASE IF NOT EXISTS school_db");
+
+            // conn.close();
+
+            // connect to DB
+            // conn = DriverManager.getConnection(
+            // "jdbc:mysql://localhost:3306/school_db?useSSL=false&serverTimezone=UTC",
+            // "root", "Haile#122123#");
+            // System.out.print("Connected........");
+
+            Statement stmt = conn.createStatement();
+
+            // Create tables
+
+            // INSERT INTO User (username, password)
+            // VALUES ('admin', '1234');
+
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS User (" +
+                    "id INT AUTO_INCREMENT PRIMARY KEY," +
+                    "username VARCHAR(50) UNIQUE," +
+                    "password VARCHAR(100))");
+            stmt.executeUpdate("INSERT IGNORE INTO User (username, password) VALUES " +
+                    "('admin', '1234')," +
+                    "('lecturer', '1234')");
+            /*
+             * xecuteUpdate("INSERT IGNORE INTO Student (RollNo, StudentName, Section, Email) VALUES "
+             * +
+             * "('RCD2015','Selamawit','A','s@email.com')," +
+             * "('RCD2016','Abenezer','A','a@email.com')");
+             */
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Student (" +
+                    "StudentID int AUTO_INCREMENT PRIMARY KEY, " +
+                    "RollNo varchar(20) UNIQUE, " +
+                    "StudentName varchar(50), " +
+                    "Section varchar(5), Email varchar(50))");
+
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Quiz (" +
+                    "QuizID int AUTO_INCREMENT PRIMARY KEY, " +
+                    "QuizCode varchar(20) UNIQUE, " +
+                    "QuizTitle varchar(100), TotalMarks int)");
+
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Score (" +
+                    "ScoreID int AUTO_INCREMENT PRIMARY KEY, " +
+                    "StudentRoll varchar(20), QuizCode varchar(20), " +
+                    "MarksObtained int)");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public Connection getConnection() {
@@ -17,7 +87,7 @@ public class DBHelper {
     }
 
     public ResultSet getScores() throws Exception {
-        String query = "SELECT s.StudentName, s.RollNo, q.QuizTitle, " +
+        String query = "SELECT s.StudentName, s.RollNo,q.QuizCode, q.QuizTitle, " +
                 "sc.MarksObtained, q.TotalMarks " +
                 "FROM Score sc " +
                 "JOIN Student s ON sc.StudentRoll = s.RollNo " +
@@ -57,6 +127,7 @@ public class DBHelper {
     public boolean login(String username, String password) throws Exception {
         String sql = "SELECT * FROM User WHERE username=? AND password=?";
         PreparedStatement ps = conn.prepareStatement(sql);
+        // System.out.print(ps.getResultSet().first());
         ps.setString(1, username);
         ps.setString(2, password);
 
@@ -110,12 +181,16 @@ public class DBHelper {
         return ps.executeUpdate();
     }
 
-    public int updateQuiz(String code, String title, int total) throws Exception {
-        String sql = "UPDATE Quiz SET QuizTitle=?, TotalMarks=? WHERE QuizCode=?";
+    public int updateQuiz(String oldCode, String newCode, String title, int total) throws Exception {
+
+        String sql = "UPDATE Quiz SET QuizCode=?, QuizTitle=?, TotalMarks=? WHERE QuizCode=?";
         PreparedStatement ps = conn.prepareStatement(sql);
-        ps.setString(1, title);
-        ps.setInt(2, total);
-        ps.setString(3, code);
+
+        ps.setString(1, newCode); // new QuizCode
+        ps.setString(2, title);
+        ps.setInt(3, total);
+        ps.setString(4, oldCode); // WHERE condition
+
         return ps.executeUpdate();
     }
 
